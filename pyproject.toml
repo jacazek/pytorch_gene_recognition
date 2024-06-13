@@ -1,0 +1,5 @@
+[project]
+name = "pytorch_gene_recognition"
+dynamic = ["dependencies"]
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
