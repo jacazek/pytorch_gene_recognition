@@ -1,6 +1,12 @@
 [project]
 name = "pytorch_gene_recognition"
-version = "0.0.1"
+version = "0.1.0"
 dynamic = ["dependencies"]
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "pep440"
+version_provider = "pep621"
+update_changelog_on_bump = true
