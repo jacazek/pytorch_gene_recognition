@@ -1,3 +1,9 @@
+## 0.2.0 (2024-06-15)
+
+### Feat
+
+- basic script to run ddp model
+
 ## 0.1.0 (2024-06-13)
 
 ### Feat

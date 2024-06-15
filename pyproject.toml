@@ -1,6 +1,6 @@
 [project]
 name = "pytorch_gene_recognition"
-version = "0.1.0"
+version = "0.2.0"
 dynamic = ["dependencies"]
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
