@@ -1,3 +1,9 @@
+## 0.3.0 (2024-06-23)
+
+### Feat
+
+- add basic passing train and validate loop
+
 ## 0.2.0 (2024-06-15)
 
 ### Feat
