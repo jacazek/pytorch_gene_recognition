@@ -20,7 +20,7 @@ cat ./uncompressed-data/genes.gff3 ./uncompressed-data/non-genes.gff3 > ./uncomp
 
 Extract the set of sequences from the genome into a separate fasta file
 ```bash
-bedtools getfasta -fi ./uncompressed-data/Zea_mays.Zm-B73-REFERENCE-NAM-5.0.dna.toplevel.fa -bed ./uncompressed-data/combined.gff3 > ./uncompressed-data/combined.fa
+bedtools getfasta -fi ./uncompressed-data/Zea_mays.Zm-B73-REFERENCE-NAM-5.0.dna.toplevel.fa -bed ./uncompressed-data/combined.gff3 -s > ./uncompressed-data/combined.fa
 ```
 
 Build the vocabulary from the combined fasta file
