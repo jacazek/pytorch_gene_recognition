@@ -18,8 +18,8 @@ class GeneRecognitionLSTM(nn.Module):
         self.embedding = embedding or nn.Embedding(self.vocabulary.__len__(), embedding_dimension,
                                       padding_idx=self.vocabulary["pad"])
         self.rnn = torch.nn.LSTM(embedding_dimension, self.hidden_size, batch_first=True)
-        self.conv1d = torch.nn.Conv1d(self.hidden_size, self.vocabulary.__len__(), kernel_size=3, padding=1)
-        self.linear = torch.nn.Linear(self.vocabulary.__len__(), 1)
+        # self.conv1d = torch.nn.Conv1d(self.hidden_size, self.hidden_size, kernel_size=9, padding=1)
+        self.linear = torch.nn.Linear(self.hidden_size, 1)
         self.dropout = torch.nn.Dropout(0.2)
 
     def forward(self, input_tensor, lengths):

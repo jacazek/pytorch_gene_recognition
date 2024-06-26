@@ -23,7 +23,7 @@ mlflow.set_tracking_uri("http://localhost:8080")
 data_directory = "./data"
 train_directory = os.path.join(data_directory, "train_data")
 test_directory = os.path.join(data_directory, "test_data")
-validate_directory = os.path.join(data_directory, "validate_data")
+validate_directory = os.path.join(data_directory, "validation_data")
 fasta_file_extension = ".genes.fa"
 train_fasta_files = [(file, f"{train_directory}/{file}") for file in os.listdir(train_directory) if
                file.endswith(fasta_file_extension)]
