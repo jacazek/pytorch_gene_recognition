@@ -1,3 +1,9 @@
+## 0.4.0 (2024-06-26)
+
+### Feat
+
+- load multiple fasta files
+
 ## 0.3.0 (2024-06-23)
 
 ### Feat
