@@ -10,41 +10,50 @@ class ModelType(Enum):
 
 # Define a simple model (e.g., using mean pooling)
 class GeneRecognitionLSTM(nn.Module):
-    def __init__(self, vocabulary, embedding_dimension, model_type=ModelType.LSTM, embedding=None):
+    def __init__(self, vocabulary, embedding_dimension, embedding=None):
         super(GeneRecognitionLSTM, self).__init__()
 
         self.vocabulary = vocabulary
-        hidden_size = embedding_dimension * 4
+        self.hidden_size = embedding_dimension * 4
         self.embedding = embedding or nn.Embedding(self.vocabulary.__len__(), embedding_dimension,
                                       padding_idx=self.vocabulary["pad"])
-        rnn_layer = torch.nn.LSTM if model_type == ModelType.LSTM else torch.nn.GRU
-        self.linear1 = torch.nn.Linear(hidden_size, hidden_size)
-        self.rnn = rnn_layer(embedding_dimension, hidden_size, batch_first=True)
-        # self.linear1 = torch.nn.Linear(self.hidden_size, self.hidden_size*2)
-        self.linear = torch.nn.Linear(hidden_size, 1)
-        self.norm = torch.nn.LayerNorm(hidden_size)
-        self.relu = torch.nn.ReLU()
+        self.rnn = torch.nn.LSTM(embedding_dimension, self.hidden_size, batch_first=True)
+        self.conv1d = torch.nn.Conv1d(self.hidden_size, self.vocabulary.__len__(), kernel_size=3, padding=1)
+        self.linear = torch.nn.Linear(self.vocabulary.__len__(), 1)
         self.dropout = torch.nn.Dropout(0.2)
-        # self.activation = torch.nn.Sigmoid()
 
     def forward(self, input_tensor, lengths):
 
         # embed on the device
+        # input.size(batch_size, sequence_length, 1)
+        # print(input_tensor.shape)
         embedded = self.embedding(input_tensor)
+        # print(embedded.shape)
 
-        # # pack on the cpu, consider doing this so lstm ignores paddings
+        # pack on the cpu, consider doing this so lstm ignores paddings
+        # input.size(batch_size, sequence_length, embedding_dimensions)
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, lengths, batch_first=True)
+        # print(packed.shape)
+
         # packed = embedded
+        # output.size(batch_size, sequence_length, embedding_dimensions)
         lstm_output, _ = self.rnn(packed)
-
-        # unpacked = lstm_output
-
-        # # unpack on the cpu, consider doing this so lstm ignores paddings
+        # unpack on the cpu, consider doing this so lstm ignores paddings
         unpacked, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_output, batch_first=True,
                                                              padding_value=self.vocabulary["pad"])
-        x = self.relu(unpacked[torch.arange(unpacked.size(0)), [length -1 for length in lengths]])
-        x = self.linear1(self.norm(x))
-        return self.linear(self.dropout(x))
+        # print(unpacked.shape)
+        x = unpacked[torch.arange(unpacked.size(0)), [length -1 for length in lengths]]
+
+        # print(x.shape)
+        x = x.unsqueeze(dim=2)
+        # print(x.shape)
+        # print(f"permuted shape: {permuted.shape}")
+
+        convolved = self.conv1d(x)
+        # print(convolved.shape)
+        # print(f"convolved shape: {convolved.shape}")
+
+        return self.linear(self.dropout(convolved.squeeze(dim=2)))
         # output = self.linear1(self.dropout(self.relu(final_hidden_state)))
         # return self.linear(self.dropout(self.relu(output)))
 
@@ -109,6 +118,7 @@ class ConvoludedLSTMModel(nn.Module):
         # # pack on the cpu, consider doing this so lstm ignores paddings
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, lengths, batch_first=True)
 
+        # output(batch_size,
         lstm_output, _ = self.rnn(packed)
         # print(f"lstm_output shape: {lstm_output.shape}")
 

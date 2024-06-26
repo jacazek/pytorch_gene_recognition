@@ -20,6 +20,18 @@ from cli_args import get_arguments, TrainArguments
 mlflow.set_tracking_uri("http://localhost:8080")
 
 
+data_directory = "./data"
+train_directory = os.path.join(data_directory, "train_data")
+test_directory = os.path.join(data_directory, "test_data")
+validate_directory = os.path.join(data_directory, "validate_data")
+fasta_file_extension = ".genes.fa"
+train_fasta_files = [(file, f"{train_directory}/{file}") for file in os.listdir(train_directory) if
+               file.endswith(fasta_file_extension)]
+test_fasta_files = [(file, f"{test_directory}/{file}") for file in os.listdir(test_directory) if
+               file.endswith(fasta_file_extension)]
+validate_fasta_files = [(file, f"{validate_directory}/{file}") for file in os.listdir(validate_directory) if
+               file.endswith(fasta_file_extension)]
+
 def load_model(model_uri):
     model = torch.load(model_uri)
     return model
@@ -92,18 +104,17 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
 
 
     tokenizer = KmerTokenizer(train_arguments.kmer_size, train_arguments.stride)
-    train_dataset = FastaDataset("./data/train_data/genes.fa", tokenizer=tokenizer, vocabulary=vocabulary,
+    train_dataset = FastaDataset(train_fasta_files[0:3], tokenizer=tokenizer, vocabulary=vocabulary,
                                  dtype=data_type)
-    test_dataset = FastaDataset("./data/test_data/genes.fa", tokenizer=tokenizer, vocabulary=vocabulary,
+    validate_dataset = FastaDataset(validate_fasta_files[0:3], tokenizer=tokenizer, vocabulary=vocabulary,
                                 dtype=data_type)
 
     train_dataloader = DataLoader(train_dataset, batch_size=train_arguments.batch_size, num_workers=train_arguments.number_train_workers,
                                   collate_fn=CreateDnaSequenceCollateFunction(vocabulary), prefetch_factor=5)
-    test_dataloader = DataLoader(test_dataset, batch_size=train_arguments.batch_size, num_workers=train_arguments.number_validate_workers,
+    validate_dataloader = DataLoader(validate_dataset, batch_size=train_arguments.batch_size, num_workers=train_arguments.number_validate_workers,
                                  collate_fn=CreateDnaSequenceCollateFunction(vocabulary), prefetch_factor=5)
 
-    model_type = ModelType.LSTM
-    model = GeneRecognitionLSTM(vocabulary, train_arguments.embedding_dimensions, model_type=model_type)
+    model = GeneRecognitionLSTM(vocabulary, train_arguments.embedding_dimensions)
     model.to(device)
 
     model.embedding.load_state_dict({"weight": embedding.weight})
@@ -115,6 +126,7 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     optimizer = torch.optim.Adam(ddp_model.parameters(), lr=train_arguments.learning_rate, fused=True)
     # optimizer = torch.optim.SGD(model.parameters(), lr=train_arguments.learning_rate, fused=True)
     scaler = torch.cuda.amp.GradScaler()
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.5)
 
     experiment = mlflow.get_experiment_by_name("Gene Recognition")
     with mlflow.start_run(experiment_id=experiment.experiment_id):
@@ -123,18 +135,23 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
             "number_devices": train_arguments.number_devices,
             "number_train_workers": train_arguments.number_train_workers,
             "number_validate_workers": train_arguments.number_validate_workers,
+
+            # data processing parameters
             "vocabulary": train_arguments.vocab_artifact_uri,
-            "optimizer": type(optimizer).__name__,
-            "lr_initial": train_arguments.learning_rate,
-            "optimizer_detailed": str(optimizer),
-            # "lr_scheduler": type(lr_scheduler).__name__,
-            # "lr_gamma": model.lr_scheduler.gamma,
-            "loss_function": type(criterion).__name__,
-            # "window_size": train_arguments.window_size,
             "kmer_size": train_arguments.kmer_size,
             "stride": train_arguments.stride,
             "batch_size": train_arguments.batch_size,
             "embedding_dimensions": train_arguments.embedding_dimensions,
+
+            # training hyper parameters
+            "optimizer": type(optimizer).__name__,
+            "optimizer_detailed": str(optimizer),
+            "lr_initial": train_arguments.learning_rate,
+            "lr_scheduler": type(lr_scheduler).__name__,
+            "lr_gamma": lr_scheduler.gamma,
+            "loss_function": type(criterion).__name__,
+            # "window_size": train_arguments.window_size,
+
         })
 
         additional_tags = {}
@@ -187,9 +204,9 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
                         f"accuracy_train_{epoch + 1}": accuracy
                     }, step=batch_idx)
                     train_batch.set_postfix(batch_loss=loss, batch_accuracy=accuracy)
-                # lr_scheduler.step()
+            lr_scheduler.step()
 
-            with tqdm(test_dataloader, unit="batch") as test_batch:
+            with tqdm(validate_dataloader, unit="batch") as test_batch:
                 test_batch.set_description(f"Epoch {epoch} test")
                 ddp_model.module.eval()
                 validate_loss_mean = torchmetrics.aggregation.MeanMetric().to(device)
