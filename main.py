@@ -25,11 +25,11 @@ train_directory = os.path.join(data_directory, "train_data")
 test_directory = os.path.join(data_directory, "test_data")
 validate_directory = os.path.join(data_directory, "validation_data")
 fasta_file_extension = ".genes.fa"
-train_fasta_files = [(file, f"{train_directory}/{file}") for file in os.listdir(train_directory) if
+train_fasta_files = [f"{train_directory}/{file}" for file in os.listdir(train_directory) if
                file.endswith(fasta_file_extension)]
-test_fasta_files = [(file, f"{test_directory}/{file}") for file in os.listdir(test_directory) if
+test_fasta_files = [f"{test_directory}/{file}" for file in os.listdir(test_directory) if
                file.endswith(fasta_file_extension)]
-validate_fasta_files = [(file, f"{validate_directory}/{file}") for file in os.listdir(validate_directory) if
+validate_fasta_files = [f"{validate_directory}/{file}" for file in os.listdir(validate_directory) if
                file.endswith(fasta_file_extension)]
 
 def load_model(model_uri):
@@ -114,7 +114,7 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     validate_dataloader = DataLoader(validate_dataset, batch_size=train_arguments.batch_size, num_workers=train_arguments.number_validate_workers,
                                  collate_fn=CreateDnaSequenceCollateFunction(vocabulary), prefetch_factor=5)
 
-    model = GeneRecognitionLSTM(vocabulary, train_arguments.embedding_dimensions)
+    model = GeneRecognitionLSTM(vocabulary, train_arguments.embedding_dimensions, bidirectional=True)
     model.to(device)
 
     model.embedding.load_state_dict({"weight": embedding.weight})
@@ -126,7 +126,8 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     optimizer = torch.optim.Adam(ddp_model.parameters(), lr=train_arguments.learning_rate, fused=True)
     # optimizer = torch.optim.SGD(model.parameters(), lr=train_arguments.learning_rate, fused=True)
     scaler = torch.cuda.amp.GradScaler()
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.5)
+    # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.5)
+    lr_scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer, factor=1.0)
 
     experiment = mlflow.get_experiment_by_name("Gene Recognition")
     with mlflow.start_run(experiment_id=experiment.experiment_id):
@@ -148,7 +149,7 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
             "optimizer_detailed": str(optimizer),
             "lr_initial": train_arguments.learning_rate,
             "lr_scheduler": type(lr_scheduler).__name__,
-            "lr_gamma": lr_scheduler.gamma,
+            # "lr_gamma": lr_scheduler.gamma,
             "loss_function": type(criterion).__name__,
             # "window_size": train_arguments.window_size,
 

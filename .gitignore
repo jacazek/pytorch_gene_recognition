@@ -168,3 +168,4 @@ artifacts/
 zea_mays/
 
 fasta_files/
+slurm*
