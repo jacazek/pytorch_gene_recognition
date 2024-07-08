@@ -159,9 +159,11 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
             # training hyper parameters
             "optimizer": type(optimizer).__name__,
             "optimizer_detailed": str(optimizer),
-            "lr_initial": train_arguments.learning_rate,
+            "initial_lr": train_arguments.initial_lr,
+            "peak_lr": train_arguments.peak_lr
             "lr_scheduler": type(lr_scheduler).__name__,
-            # "lr_gamma": lr_scheduler.gamma,
+            "lr_gamma": train_arguments.lr_gamma,
+            "warmup_steps": train_arguments.warmup_steps,
             "loss_function": type(criterion).__name__,
             # "window_size": train_arguments.window_size,
 
