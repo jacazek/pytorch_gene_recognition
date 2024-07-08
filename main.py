@@ -183,6 +183,9 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
         #                        train_arguments.artifact_directory)
 
         for epoch in range(train_arguments.epochs):
+            mlflow.log_metrics({
+                "learning_rate": optimizer.param_groups[0]['lr']
+            }, step=epoch)
             with tqdm(train_dataloader, unit="batch") as train_batch:
                 train_batch.set_description(f"Epoch {epoch} train")
                 ddp_model.train()
