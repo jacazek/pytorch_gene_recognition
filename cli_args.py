@@ -20,6 +20,7 @@ class TrainArguments:
     initial_lr: float
     peak_lr: float
     lr_gamma: float
+    warmup_steps: int
     # number_train_files_per_epoch: int
     # number_validate_files_per_epoch: int
     tags: List[str]
@@ -56,6 +57,7 @@ def get_arguments() -> TrainArguments:
     parser.add_argument("--peak_lr", type=float, default=0.01, help="Peak learning rate for optimizer")
     parser.add_argument("--lr_gamma", type=float, default=0.5,
                         help="The learning rate gamma for the scheduler")
+    parser.add_argument("--warmup_steps", type=int, default=5, help="Number of steps to increase learning rate from initial to peak")
     # parser.add_argument("--number_train_files_per_epoch", type=int, default=1,
     #                     help="The number of fasta files to train per device per epoch")
     # parser.add_argument("--number_validate_files_per_epoch", type=int, default=1,

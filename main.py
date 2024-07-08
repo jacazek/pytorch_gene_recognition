@@ -17,8 +17,8 @@ from fasta_pytorch_utils.data.FastaDataset import FastaDataset
 from models.GeneRecognition import GeneRecognitionLSTM, ModelType, SplitLSTMModel
 
 from cli_args import get_arguments, TrainArguments
-mlflow.set_tracking_uri("http://localhost:8080")
 
+mlflow.set_tracking_uri("http://localhost:8080")
 
 data_directory = "./data"
 train_directory = os.path.join(data_directory, "train_data")
@@ -26,11 +26,12 @@ test_directory = os.path.join(data_directory, "test_data")
 validate_directory = os.path.join(data_directory, "validation_data")
 fasta_file_extension = ".genes.fa"
 train_fasta_files = [f"{train_directory}/{file}" for file in os.listdir(train_directory) if
-               file.endswith(fasta_file_extension)]
+                     file.endswith(fasta_file_extension)]
 test_fasta_files = [f"{test_directory}/{file}" for file in os.listdir(test_directory) if
-               file.endswith(fasta_file_extension)]
+                    file.endswith(fasta_file_extension)]
 validate_fasta_files = [f"{validate_directory}/{file}" for file in os.listdir(validate_directory) if
-               file.endswith(fasta_file_extension)]
+                        file.endswith(fasta_file_extension)]
+
 
 def load_model(model_uri):
     model = torch.load(model_uri)
@@ -75,7 +76,9 @@ class CreateDnaSequenceCollateFunction:
         The sequences should have already been loaded for cpu manipulation, so we should pad them before
         moving them to the gpu because it is more efficient to pad on the cpu
         """
-        sequences = torch.nn.utils.rnn.pad_sequence([torch.tensor(sequence, dtype=torch.long) for sequence in sequences], batch_first=True, padding_value=self.vocabulary["pad"])
+        sequences = torch.nn.utils.rnn.pad_sequence(
+            [torch.tensor(sequence, dtype=torch.long) for sequence in sequences], batch_first=True,
+            padding_value=self.vocabulary["pad"])
         return sequences, targets, lengths
 
 
@@ -103,12 +106,14 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     train_dataset = FastaDataset(train_fasta_files[0:1], tokenizer=tokenizer, vocabulary=vocabulary,
                                  dtype=data_type)
     validate_dataset = FastaDataset(validate_fasta_files[0:1], tokenizer=tokenizer, vocabulary=vocabulary,
-                                dtype=data_type)
+                                    dtype=data_type)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=train_arguments.batch_size, num_workers=train_arguments.number_train_workers,
+    train_dataloader = DataLoader(train_dataset, batch_size=train_arguments.batch_size,
+                                  num_workers=train_arguments.number_train_workers,
                                   collate_fn=CreateDnaSequenceCollateFunction(vocabulary), prefetch_factor=5)
-    validate_dataloader = DataLoader(validate_dataset, batch_size=train_arguments.batch_size, num_workers=train_arguments.number_validate_workers,
-                                 collate_fn=CreateDnaSequenceCollateFunction(vocabulary), prefetch_factor=5)
+    validate_dataloader = DataLoader(validate_dataset, batch_size=train_arguments.batch_size,
+                                     num_workers=train_arguments.number_validate_workers,
+                                     collate_fn=CreateDnaSequenceCollateFunction(vocabulary), prefetch_factor=5)
 
     model = GeneRecognitionLSTM(vocabulary, train_arguments.embedding_dimensions, bidirectional=False)
     model.to(device)
@@ -122,17 +127,19 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     optimizer = torch.optim.Adam(ddp_model.parameters(), lr=train_arguments.initial_lr, fused=True)
     # optimizer = torch.optim.SGD(model.parameters(), lr=train_arguments.learning_rate, fused=True)
     scaler = torch.cuda.amp.GradScaler()
+
     # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.7)
 
-    warmup_steps = 11
-
     def lr_lambda(epoch):
-        if epoch < warmup_steps:
-            return train_arguments.initial_lr + (train_arguments.peak_lr - train_arguments.initial_lr) * (epoch / warmup_steps)
+        if epoch < train_arguments.warmup_steps:
+            return train_arguments.initial_lr + (train_arguments.peak_lr - train_arguments.initial_lr) * (
+                        epoch / train_arguments.warmup_steps)
         else:
-            return train_arguments.peak_lr * ((train_arguments.epochs - epoch) / (train_arguments.epochs - warmup_steps)) ** train_arguments.lr_gamma
+            return train_arguments.peak_lr * ((train_arguments.epochs - epoch) / (
+                        train_arguments.epochs - train_arguments.warmup_steps)) ** train_arguments.lr_gamma
 
     # lr_scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer, factor=1.0)
+    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
 
     experiment = mlflow.get_experiment_by_name("Gene Recognition")
     with mlflow.start_run(experiment_id=experiment.experiment_id):
@@ -248,7 +255,6 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
                         train_batch.set_postfix(batch_loss=loss, batch_accuracy=accuracy)
 
         if rank == 0:
-
             mlflow_pytorch.log_model(model, "model")
 
             # TODO: figure out how to trace network containing other python code
@@ -281,7 +287,7 @@ def main():
     os.environ["TORCH_BLAS_PREFER_HIPBLASLT"] = "0"
     world_size = int(os.environ.get('WORLD_SIZE', 1))
     torch.multiprocessing.spawn(demo_basic,
-                                args=(world_size,train_arguments),
+                                args=(world_size, train_arguments),
                                 nprocs=world_size)
 
 
