@@ -160,7 +160,7 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
             "optimizer": type(optimizer).__name__,
             "optimizer_detailed": str(optimizer),
             "initial_lr": train_arguments.initial_lr,
-            "peak_lr": train_arguments.peak_lr
+            "peak_lr": train_arguments.peak_lr,
             "lr_scheduler": type(lr_scheduler).__name__,
             "lr_gamma": train_arguments.lr_gamma,
             "warmup_steps": train_arguments.warmup_steps,
