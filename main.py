@@ -124,19 +124,21 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     ddp_model = DDP(model, device_ids=[rank])
 
     criterion = nn.BCEWithLogitsLoss().to(device=device)
-    optimizer = torch.optim.Adam(ddp_model.parameters(), lr=train_arguments.initial_lr, fused=True)
+    optimizer = torch.optim.Adam(ddp_model.parameters(), lr=1, fused=True)
     # optimizer = torch.optim.SGD(model.parameters(), lr=train_arguments.learning_rate, fused=True)
     scaler = torch.cuda.amp.GradScaler()
-
+    print(train_arguments.initial_lr)
     # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.7)
 
     def lr_lambda(epoch):
+        if epoch == 0:
+            return train_arguments.initial_lr
         if epoch < train_arguments.warmup_steps:
             return train_arguments.initial_lr + (train_arguments.peak_lr - train_arguments.initial_lr) * (
                         epoch / train_arguments.warmup_steps)
         else:
-            return train_arguments.peak_lr * ((train_arguments.epochs - epoch) / (
-                        train_arguments.epochs - train_arguments.warmup_steps)) ** train_arguments.lr_gamma
+            return train_arguments.peak_lr * (
+                        train_arguments.lr_gamma ** ((epoch - train_arguments.warmup_steps)))
 
     # lr_scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer, factor=1.0)
     lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
@@ -222,6 +224,7 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
                         f"accuracy_train_{epoch + 1}": accuracy
                     }, step=batch_idx)
                     train_batch.set_postfix(batch_loss=loss, batch_accuracy=accuracy)
+                    break
             lr_scheduler.step()
 
             with tqdm(validate_dataloader, unit="batch") as test_batch:
