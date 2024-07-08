@@ -16,8 +16,10 @@ class TrainArguments:
     stride: int
     # window_size: int
     embedding_dimensions: int
-    learning_rate: float
-    # lr_gamma: float
+    # learning_rate: float
+    initial_lr: float
+    peak_lr: float
+    lr_gamma: float
     # number_train_files_per_epoch: int
     # number_validate_files_per_epoch: int
     tags: List[str]
@@ -49,10 +51,11 @@ def get_arguments() -> TrainArguments:
     #                     help="The size of the window for training embedding")
     parser.add_argument("--embedding_dimensions", type=int, default=64,
                         help="The number of dimensions for each embedding")
-    parser.add_argument("--learning_rate", type=float, default=0.001,
-                        help="The learning rate for optimizer")
-    # parser.add_argument("--lr_gamma", type=float, default=0.5,
-    #                     help="The learning rate gamma for the scheduler")
+    parser.add_argument("--initial_lr", type=float, default=0.0001,
+                        help="Initial learning rate for optimizer")
+    parser.add_argument("--peak_lr", type=float, default=0.01, help="Peak learning rate for optimizer")
+    parser.add_argument("--lr_gamma", type=float, default=0.5,
+                        help="The learning rate gamma for the scheduler")
     # parser.add_argument("--number_train_files_per_epoch", type=int, default=1,
     #                     help="The number of fasta files to train per device per epoch")
     # parser.add_argument("--number_validate_files_per_epoch", type=int, default=1,

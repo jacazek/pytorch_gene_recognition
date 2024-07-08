@@ -94,19 +94,15 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     embedding_path = os.path.join(train_arguments.artifact_directory, embedding_name)
     embedding = load_model(embedding_path)
     embedding.to(device)
-    # embedding.weight.requires_grad = False
-
 
     print(f"Running basic DDP example on rank {rank}.")
     print(f"torch enabled {torch.cuda.is_available()}")
     setup(rank, world_size)
 
-
-
     tokenizer = KmerTokenizer(train_arguments.kmer_size, train_arguments.stride)
-    train_dataset = FastaDataset(train_fasta_files[0:3], tokenizer=tokenizer, vocabulary=vocabulary,
+    train_dataset = FastaDataset(train_fasta_files[0:1], tokenizer=tokenizer, vocabulary=vocabulary,
                                  dtype=data_type)
-    validate_dataset = FastaDataset(validate_fasta_files[0:3], tokenizer=tokenizer, vocabulary=vocabulary,
+    validate_dataset = FastaDataset(validate_fasta_files[0:1], tokenizer=tokenizer, vocabulary=vocabulary,
                                 dtype=data_type)
 
     train_dataloader = DataLoader(train_dataset, batch_size=train_arguments.batch_size, num_workers=train_arguments.number_train_workers,
@@ -114,7 +110,7 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     validate_dataloader = DataLoader(validate_dataset, batch_size=train_arguments.batch_size, num_workers=train_arguments.number_validate_workers,
                                  collate_fn=CreateDnaSequenceCollateFunction(vocabulary), prefetch_factor=5)
 
-    model = GeneRecognitionLSTM(vocabulary, train_arguments.embedding_dimensions, bidirectional=True)
+    model = GeneRecognitionLSTM(vocabulary, train_arguments.embedding_dimensions, bidirectional=False)
     model.to(device)
 
     model.embedding.load_state_dict({"weight": embedding.weight})
@@ -123,11 +119,20 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     ddp_model = DDP(model, device_ids=[rank])
 
     criterion = nn.BCEWithLogitsLoss().to(device=device)
-    optimizer = torch.optim.Adam(ddp_model.parameters(), lr=train_arguments.learning_rate, fused=True)
+    optimizer = torch.optim.Adam(ddp_model.parameters(), lr=train_arguments.initial_lr, fused=True)
     # optimizer = torch.optim.SGD(model.parameters(), lr=train_arguments.learning_rate, fused=True)
     scaler = torch.cuda.amp.GradScaler()
-    # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.5)
-    lr_scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer, factor=1.0)
+    # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.7)
+
+    warmup_steps = 11
+
+    def lr_lambda(epoch):
+        if epoch < warmup_steps:
+            return train_arguments.initial_lr + (train_arguments.peak_lr - train_arguments.initial_lr) * (epoch / warmup_steps)
+        else:
+            return train_arguments.peak_lr * ((train_arguments.epochs - epoch) / (train_arguments.epochs - warmup_steps)) ** train_arguments.lr_gamma
+
+    # lr_scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer, factor=1.0)
 
     experiment = mlflow.get_experiment_by_name("Gene Recognition")
     with mlflow.start_run(experiment_id=experiment.experiment_id):
