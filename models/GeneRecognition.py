@@ -23,6 +23,8 @@ class GeneRecognitionLSTM(nn.Module):
         self.dropout = torch.nn.Dropout(0.2)
 
     def forward(self, input_tensor, lengths):
+        h0 = torch.zeros(1, input_tensor.size(0), self.hidden_size)
+        c0 = torch.zeros(1, input_tensor.size(0), self.hidden_size)
 
         # embed on the device
         # input.size(batch_size, sequence_length, 1)
@@ -37,7 +39,7 @@ class GeneRecognitionLSTM(nn.Module):
 
         # packed = embedded
         # output.size(batch_size, sequence_length, embedding_dimensions)
-        lstm_output, (hn, cn) = self.rnn(packed)
+        lstm_output, (hn, cn) = self.rnn(packed, (h0,c0))
         # unpack on the cpu, consider doing this so lstm ignores paddings
         unpacked, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_output, batch_first=True,
                                                              padding_value=self.vocabulary["pad"])

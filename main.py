@@ -103,9 +103,9 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     setup(rank, world_size)
 
     tokenizer = KmerTokenizer(train_arguments.kmer_size, train_arguments.stride)
-    train_dataset = FastaDataset(train_fasta_files[0:1], tokenizer=tokenizer, vocabulary=vocabulary,
+    train_dataset = FastaDataset(train_fasta_files[0:3], tokenizer=tokenizer, vocabulary=vocabulary,
                                  dtype=data_type)
-    validate_dataset = FastaDataset(validate_fasta_files[0:1], tokenizer=tokenizer, vocabulary=vocabulary,
+    validate_dataset = FastaDataset(validate_fasta_files[0:3], tokenizer=tokenizer, vocabulary=vocabulary,
                                     dtype=data_type)
 
     train_dataloader = DataLoader(train_dataset, batch_size=train_arguments.batch_size,
