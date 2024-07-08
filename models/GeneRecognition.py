@@ -23,8 +23,8 @@ class GeneRecognitionLSTM(nn.Module):
         self.dropout = torch.nn.Dropout(0.2)
 
     def forward(self, input_tensor, lengths):
-        h0 = torch.zeros(1, input_tensor.size(0), self.hidden_size)
-        c0 = torch.zeros(1, input_tensor.size(0), self.hidden_size)
+        h0 = torch.zeros(1, input_tensor.size(0), self.hidden_size, device=input_tensor.device)
+        c0 = torch.zeros(1, input_tensor.size(0), self.hidden_size, device=input_tensor.device)
 
         # embed on the device
         # input.size(batch_size, sequence_length, 1)
