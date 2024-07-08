@@ -23,6 +23,7 @@ class TrainArguments:
     warmup_steps: int
     # number_train_files_per_epoch: int
     # number_validate_files_per_epoch: int
+    number_genomes: int
     tags: List[str]
     vocab_artifact_uri: str
     embedding_artifact_uri: str
@@ -62,6 +63,7 @@ def get_arguments() -> TrainArguments:
     #                     help="The number of fasta files to train per device per epoch")
     # parser.add_argument("--number_validate_files_per_epoch", type=int, default=1,
     #                     help="The number of fasta files to validate per device per epoch")
+    parser.add_argument("--number_genomes", type=int, default=1, help="Number of genomes to use per epoch")
     parser.add_argument("--tags", action="append", help="Additional key:value tags to capture with the training run")
 
     # vocabulary arguments
@@ -73,6 +75,7 @@ def get_arguments() -> TrainArguments:
                         help="The uri for embedding artifact")
     parser.add_argument("--artifact_directory", type=str, default="./artifacts",
                         help="Directory for downloading artifacts")
+
 
     args = parser.parse_args()
     train_arguments = TrainArguments(**vars(args), command=str(
