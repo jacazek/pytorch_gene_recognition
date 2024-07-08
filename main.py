@@ -224,7 +224,6 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
                         f"accuracy_train_{epoch + 1}": accuracy
                     }, step=batch_idx)
                     train_batch.set_postfix(batch_loss=loss, batch_accuracy=accuracy)
-                    break
             lr_scheduler.step()
 
             with tqdm(validate_dataloader, unit="batch") as test_batch:
