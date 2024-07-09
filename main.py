@@ -145,27 +145,12 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
 
     experiment = mlflow.get_experiment_by_name("Gene Recognition")
     with mlflow.start_run(experiment_id=experiment.experiment_id):
-        mlflow.log_params({
-            "epochs": train_arguments.epochs,
-            "number_devices": train_arguments.number_devices,
-            "number_train_workers": train_arguments.number_train_workers,
-            "number_validate_workers": train_arguments.number_validate_workers,
-
-            # data processing parameters
-            "vocabulary": train_arguments.vocab_artifact_uri,
-            "kmer_size": train_arguments.kmer_size,
-            "stride": train_arguments.stride,
-            "batch_size": train_arguments.batch_size,
-            "embedding_dimensions": train_arguments.embedding_dimensions,
+        mlflow.log_params(train_arguments.__dict__ | {
 
             # training hyper parameters
             "optimizer": type(optimizer).__name__,
             "optimizer_detailed": str(optimizer),
-            "initial_lr": train_arguments.initial_lr,
-            "peak_lr": train_arguments.peak_lr,
             "lr_scheduler": type(lr_scheduler).__name__,
-            "lr_gamma": train_arguments.lr_gamma,
-            "warmup_steps": train_arguments.warmup_steps,
             "loss_function": type(criterion).__name__,
             # "window_size": train_arguments.window_size,
 
@@ -213,7 +198,7 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
                     probabilities = torch.sigmoid(output)
 
                     # if batch_idx % 100 == 0:
-                    binary_predictions = (probabilities > 0.5).float()
+                    binary_predictions = (probabilities > train_arguments.classification_threshold).float()
                     correct = (binary_predictions == labels).float().sum().item()
 
                     loss = train_loss_mean(loss.item()).item()
@@ -249,7 +234,7 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
                         probabilities = torch.sigmoid(output)
 
                         # if batch_idx % 100 == 0:
-                        binary_predictions = (probabilities > 0.5).float()
+                        binary_predictions = (probabilities > train_arguments.classification_threshold).float()
                         correct = (binary_predictions == labels).float().sum().item()
 
                         loss = validate_loss_mean(loss.item()).item()

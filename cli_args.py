@@ -28,6 +28,7 @@ class TrainArguments:
     vocab_artifact_uri: str
     embedding_artifact_uri: str
     artifact_directory: str
+    classification_threshold: float
 
     # keep this key last
     command: str
@@ -75,6 +76,7 @@ def get_arguments() -> TrainArguments:
                         help="The uri for embedding artifact")
     parser.add_argument("--artifact_directory", type=str, default="./artifacts",
                         help="Directory for downloading artifacts")
+    parser.add_argument("--classification_threshold", type=float, default=0.5, help="Classification probability threshold of sequence being a gene")
 
 
     args = parser.parse_args()
