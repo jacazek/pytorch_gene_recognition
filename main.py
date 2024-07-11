@@ -98,8 +98,6 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     embedding = load_model(embedding_path)
     embedding.to(device)
 
-    print(f"Running basic DDP example on rank {rank}.")
-    print(f"torch enabled {torch.cuda.is_available()}")
     setup(rank, world_size)
 
     tokenizer = KmerTokenizer(train_arguments.kmer_size, train_arguments.stride)
@@ -127,7 +125,6 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     optimizer = torch.optim.Adam(ddp_model.parameters(), lr=1, fused=True)
     # optimizer = torch.optim.SGD(model.parameters(), lr=train_arguments.learning_rate, fused=True)
     scaler = torch.cuda.amp.GradScaler()
-    print(train_arguments.initial_lr)
     # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.7)
 
     def lr_lambda(epoch):
@@ -168,7 +165,13 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
         # if rank == 0:
         #     save_model_summary(model, (train_arguments.batch_size, train_arguments.window_size - 1),
         #                        train_arguments.artifact_directory)
-
+        precision = torchmetrics.Precision("binary", num_classes=2, threshold=train_arguments.classification_threshold).to(device=device)
+        recall = torchmetrics.Recall("binary", num_classes=2, threshold=train_arguments.classification_threshold).to(device=device)
+        f1score = torchmetrics.F1Score("binary", num_classes=2, threshold=train_arguments.classification_threshold).to(device=device)
+        train_loss_mean = torchmetrics.aggregation.MeanMetric().to(device)
+        train_accuracy_mean = torchmetrics.aggregation.MeanMetric().to(device)
+        validate_loss_mean = torchmetrics.aggregation.MeanMetric().to(device)
+        validate_accuracy_mean = torchmetrics.aggregation.MeanMetric().to(device)
         for epoch in range(train_arguments.epochs):
             mlflow.log_metrics({
                 "learning_rate": optimizer.param_groups[0]['lr']
@@ -176,8 +179,6 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
             with tqdm(train_dataloader, unit="batch") as train_batch:
                 train_batch.set_description(f"Epoch {epoch} train")
                 ddp_model.train()
-                train_loss_mean = torchmetrics.aggregation.MeanMetric().to(device)
-                train_accuracy_mean = torchmetrics.aggregation.MeanMetric().to(device)
 
                 for batch_idx, batch in enumerate(train_batch):
                     genes, labels, lengths = batch
@@ -197,6 +198,10 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
 
                     probabilities = torch.sigmoid(output)
 
+                    precision_value = precision(probabilities, labels).item()
+                    recall_value = recall(probabilities, labels).item()
+                    f1score_value = f1score(probabilities, labels).item()
+
                     # if batch_idx % 100 == 0:
                     binary_predictions = (probabilities > train_arguments.classification_threshold).float()
                     correct = (binary_predictions == labels).float().sum().item()
@@ -206,16 +211,29 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
 
                     mlflow.log_metrics({
                         f"loss_train_{epoch + 1}": loss,
-                        f"accuracy_train_{epoch + 1}": accuracy
+                        f"accuracy_train_{epoch + 1}": accuracy,
+                        f"precision_train_{epoch + 1}": precision_value,
+                        f"recall_train_{epoch + 1}": recall_value,
+                        f"f1_score_train_{epoch + 1}": f1score_value
                     }, step=batch_idx)
                     train_batch.set_postfix(batch_loss=loss, batch_accuracy=accuracy)
+                mlflow.log_metrics({
+                    f"accuracy_train": train_accuracy_mean.compute(),
+                    f"precision_train": precision.compute(),
+                    f"recall_train": recall.compute(),
+                    f"f1_score_train": f1score.compute()
+                }, step=epoch)
             lr_scheduler.step()
+            train_loss_mean.reset()
+            train_accuracy_mean.reset()
+            precision.reset()
+            recall.reset()
+            f1score.reset()
 
             with tqdm(validate_dataloader, unit="batch") as test_batch:
                 test_batch.set_description(f"Epoch {epoch} test")
                 ddp_model.module.eval()
-                validate_loss_mean = torchmetrics.aggregation.MeanMetric().to(device)
-                validate_accuracy_mean = torchmetrics.aggregation.MeanMetric().to(device)
+
                 with torch.no_grad():
                     for batch_idx, batch in enumerate(test_batch):
                         genes, labels, lengths = batch
@@ -232,7 +250,9 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
                                              labels)
 
                         probabilities = torch.sigmoid(output)
-
+                        precision.update(probabilities, labels)
+                        recall.update(probabilities, labels)
+                        f1score.update(probabilities, labels)
                         # if batch_idx % 100 == 0:
                         binary_predictions = (probabilities > train_arguments.classification_threshold).float()
                         correct = (binary_predictions == labels).float().sum().item()
@@ -245,7 +265,17 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
                             f"accuracy_validate_{epoch + 1}": accuracy
                         }, step=batch_idx)
                         train_batch.set_postfix(batch_loss=loss, batch_accuracy=accuracy)
-
+                mlflow.log_metrics({
+                    f"accuracy_validate": validate_accuracy_mean.compute(),
+                    f"precision_validate": precision.compute(),
+                    f"recall_validate": recall.compute(),
+                    f"f1_score_train": f1score.compute()
+                }, step=epoch)
+            precision.reset()
+            recall.reset()
+            validate_loss_mean.reset()
+            validate_accuracy_mean.reset()
+            f1score.reset()
         if rank == 0:
             mlflow_pytorch.log_model(model, "model")
 
