@@ -269,7 +269,7 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
                     f"accuracy_validate": validate_accuracy_mean.compute(),
                     f"precision_validate": precision.compute(),
                     f"recall_validate": recall.compute(),
-                    f"f1_score_train": f1score.compute()
+                    f"f1_score_validate": f1score.compute()
                 }, step=epoch)
             precision.reset()
             recall.reset()
