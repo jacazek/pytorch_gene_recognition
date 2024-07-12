@@ -1,12 +1,15 @@
 import os
 import mlflow
 from tqdm import tqdm
+import mlflow.pytorch as mlflow_pytorch
 import pickle
 from torch.utils.data import DataLoader
 import torch
+from torchinfo import summary
 import torch.distributed as dist
 import torch.nn as nn
 import torchmetrics
+import torch.optim as optim
 from torch.nn.parallel import DistributedDataParallel as DDP
 from fasta_utils.tokenizers import KmerTokenizer
 # from fasta_utils.vocab import Vocab
@@ -14,7 +17,9 @@ from fasta_pytorch_utils.data.FastaDataset import FastaDataset
 from models.GeneRecognition import GeneRecognitionLSTM, ModelType, SplitLSTMModel
 
 from dataclasses import dataclass
+from typing import List
 import argparse
+import subprocess
 import os
 
 @dataclass
@@ -44,9 +49,6 @@ def get_arguments() -> TrainArguments:
     parser.add_argument("--stride", type=int, default=3,
                         help="The stride between kmers")
     parser.add_argument("--input_file", type=str, default=None, help="File containing list of genes fasta files to process", required=True)
-    parser.add_argument("--output_file", type=str, default="gene_results.txt",
-                        help="File containing results")
-
 
     # vocabulary arguments
     parser.add_argument("--model_artifact_uri", type=str,
@@ -122,7 +124,6 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     if (not train_arguments.input_file):
         raise Exception("Input file required")
     genes_files = list(read_genes_files(train_arguments.input_file))
-    print(genes_files)
     test_fasta_files = genes_files
     # test_fasta_files = [f"{test_directory}/{file}" for file in os.listdir(test_directory) if
     #                     file.endswith(fasta_file_extension)]
@@ -139,14 +140,12 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
     model = load_model(model_path)
     model.to(device)
     vocabulary = model.vocabulary
-    print(vocabulary)
 
     setup(rank, world_size)
 
     tokenizer = KmerTokenizer(train_arguments.kmer_size, train_arguments.stride)
     test_dataset = FastaDataset(test_fasta_files, tokenizer=tokenizer, vocabulary=vocabulary,
                                  dtype=data_type)
-    print(len(test_fasta_files))
 
     test_dataloader = DataLoader(test_dataset, batch_size=train_arguments.batch_size,
                                      num_workers=train_arguments.number_test_workers,
