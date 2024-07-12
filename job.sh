@@ -12,7 +12,7 @@ export TQDM_DISABLE=1
 # cd /home/jacob/PycharmProjects/pytorch_dna2vec
 echo "Running scripts"
 
-srun rocm-python main.py --batch_size=32 --epochs=10 --number_genomes=5 --peak_lr=0.003 --warmup_steps=4 --lr_gamma=0.5 --classification_threshold=0.7
-#srun nvidia-python main.py --batch_size=32 --epochs=10 --number_genomes=5 --peak_lr=0.003 --warmup_steps=4 --lr_gamma=0.5 --classification_threshold=0.7
+srun rocm-python main.py --batch_size=32 --epochs=10 --number_genomes=5 --peak_lr=0.003 --warmup_steps=3 --lr_gamma=0.5 --classification_threshold=0.7
+#srun nvidia-python main.py --batch_size=32 --epochs=10 --number_genomes=5 --peak_lr=0.003 --warmup_steps=3 --lr_gamma=0.5 --classification_threshold=0.7
 #srun rocm-python main.py --batch_size=32 --epochs=15 --number_genomes=4
 # python-rocm main.py --learning_rate=0.0001 --batch_size=96 --embedding_artifact_uri=mlflow-artifacts:/3/02e1fd194fdc44cab4435191c94b27c2/artifacts/scripted_embedding/data/model.pth  --embedding_dimensions=128

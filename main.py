@@ -264,7 +264,7 @@ def demo_basic(rank, world_size, train_arguments: TrainArguments):
                             f"loss_validate_{epoch + 1}": loss,
                             f"accuracy_validate_{epoch + 1}": accuracy
                         }, step=batch_idx)
-                        train_batch.set_postfix(batch_loss=loss, batch_accuracy=accuracy)
+                        test_batch.set_postfix(batch_loss=loss, batch_accuracy=accuracy)
                 mlflow.log_metrics({
                     f"accuracy_validate": validate_accuracy_mean.compute(),
                     f"precision_validate": precision.compute(),
