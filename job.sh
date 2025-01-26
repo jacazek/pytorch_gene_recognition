@@ -8,8 +8,6 @@
 export TQDM_DISABLE=1
 #echo "Sleeping 10 seconds"
 #sleep 10
-# echo "Moving to script directory"
-# cd /home/jacob/PycharmProjects/pytorch_dna2vec
 echo "Running scripts"
 
 #command="rocm-python"
